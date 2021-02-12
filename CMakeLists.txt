@@ -44,7 +44,8 @@
 
 cmake_minimum_required (VERSION 3.13.5)
 
-project(PanNDE_modules C CXX)#CUDA
+#Plugin Architecture for Numerical NDE (Pan NDE)
+project(PanNDE C CXX)#CUDA
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -53,20 +54,29 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/lib) #for static lib
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/lib) # for shared lib
+set(CMAKE_BUILD_TYPE RelWithDebInfo)
+file(MAKE_DIRECTORY "${CMAKE_SOURCE_DIR}/data")
 
-set(PANNDE_SOURCE_DIR "${CMAKE_SOURCE_DIR}/modules/PanNDE")
-add_subdirectory("${PANNDE_SOURCE_DIR}")
+option(GO_TEST "Enable Tests" ON)
 
-set(CONTROLLER_SOURCE_DIR "${CMAKE_SOURCE_DIR}/modules/Controller")
-add_subdirectory("${CONTROLLER_SOURCE_DIR}")
+if(GO_TEST)
+    enable_testing()
+    message(STATUS "-- TESTING ENABLED --")
+    set(GTEST_SERVICE_DIR "${CMAKE_SOURCE_DIR}/modules/services/gtest")
+    add_subdirectory("${GTEST_SERVICE_DIR}/googletest")
+    include_directories("${GTEST_SERVICE_DIR}/googletest/include"
+                        "${GTEST_SERVICE_DIR}/googlemock/include")
+    set(GTEST_DRIVERS_DIR "${CMAKE_SOURCE_DIR}/modules/testDrivers")
+else()
+    message(WARNING "-- TESTING DISABLED --")
+endif()
 
-set(STUBS_SOURCE_DIR "${CMAKE_SOURCE_DIR}/modules/Stubs")
-add_subdirectory("${STUBS_SOURCE_DIR}")
-set(HOSTDATA_SOURCE_DIR "${CMAKE_SOURCE_DIR}/modules/HostData")
-add_subdirectory("${HOSTDATA_SOURCE_DIR}")
-set(NETMPI_SOURCE_DIR "${CMAKE_SOURCE_DIR}/modules/NetMPI")
-add_subdirectory("${NETMPI_SOURCE_DIR}")
-set(VTKIO_SOURCE_DIR "${CMAKE_SOURCE_DIR}/modules/VTKIO")
-add_subdirectory("${VTKIO_SOURCE_DIR}")
-set(HOSTSOLVER_SOURCE_DIR "${CMAKE_SOURCE_DIR}/modules/HostSolver")
-add_subdirectory("${HOSTSOLVER_SOURCE_DIR}")
+include(FindOpenMP)
+if(OPENMP_FOUND)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
+endif()
+
+add_subdirectory("${CMAKE_SOURCE_DIR}/modules")
+add_subdirectory("${CMAKE_SOURCE_DIR}/applications")
