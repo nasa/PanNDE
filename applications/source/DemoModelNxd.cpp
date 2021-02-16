@@ -157,7 +157,7 @@ class Main {
             double xdvals[4]={center0[0],center0[1],center0[2],time};
             printf("[%i] excitation: f(%g)=%e\n",
                     comm->getProcessId(),time,
-                    xducers.at(1)->evalAt(xdvals));
+                    xducers.at(2)->evalAt(xdvals));
           };
           time=model->solve();
           comm->broadcastValue(&time);
