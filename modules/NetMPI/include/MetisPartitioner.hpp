@@ -88,6 +88,17 @@ namespace NetMPI {
         dblmfg=dbl_maker;
       };
 
+      static
+      std::shared_ptr<NetMPI::MetisPartitioner> makeShared(
+                      std::shared_ptr<PanNDE::ArrayFactory<int32_t>> i32_maker,
+                      std::shared_ptr<PanNDE::ArrayFactory<int64_t>> i64_maker,
+                      std::shared_ptr<PanNDE::ArrayFactory<double>> dbl_maker,
+                      std::shared_ptr<PanNDE::Communicator>communicator=nullptr){
+        auto partitioner=std::make_shared<NetMPI::MetisPartitioner>(NetMPI::MetisPartitioner(
+                            i32_maker,i64_maker,dbl_maker,communicator));
+        return std::move(partitioner);
+      };
+
       /*!
       * partition a mesh
       * \param Nparts number of parts to decompose the mesh into
@@ -305,6 +316,8 @@ namespace NetMPI {
         for(int k=0;k<cell_ids->size();k++){
           gmesh->cell(cell_ids->at(k),box);
           for(int kb=0;kb<8;kb++){
+            int local_nidx=node_idx_map.at(box[kb]);
+            if(0>local_nidx){throw std::logic_error("nodal index map fault");};
             corners->at(8*k+kb)=node_idx_map.at(box[kb]);
           };
         };
@@ -387,6 +400,7 @@ namespace NetMPI {
                             int source_rank){
         auto local_nodes=recvPartitionNodes(part_id,maker,source_rank);
         auto local_cells=recvPartitionCells(part_id,maker,source_rank);
+        printf("[%i] data received.\n",comm->getProcessId());
         return std::move(maker->makeManagedMesh(local_nodes.data(),local_nodes.size(),
                                                 local_cells.data(),local_cells.size(),part_id));
       };
@@ -408,8 +422,10 @@ namespace NetMPI {
         auto gids=getNodeGlobalIds(part_id);
         comm->sendArray(gids,destination_rank);
         comm->waitall();
-        comm->sendArray(getNodeCoords(gids),destination_rank);
-        comm->sendArray(getNodeOwner(gids),destination_rank);
+        auto node_coords_to_send=getNodeCoords(gids);
+        comm->sendArray(node_coords_to_send,destination_rank);
+        auto node_owners_to_send=getNodeOwner(gids);
+        comm->sendArray(node_owners_to_send,destination_rank);
         comm->waitall();
         return buildPartitionNodesIdxMap(gids);
       };
@@ -428,8 +444,10 @@ namespace NetMPI {
         auto gids=getCellGlobalIds(part_id);
         comm->sendArray(gids,destination_rank);
         comm->waitall();
-        comm->sendArray(getCellCorners(gids,idx_map),destination_rank);
-        comm->sendArray(getCellOwner(gids,part_id),destination_rank);
+        auto corners=getCellCorners(gids,idx_map);
+        comm->sendArray(corners,destination_rank);
+        auto cell_owners=getCellOwner(gids,part_id);
+        comm->sendArray(cell_owners,destination_rank);
         comm->waitall();
       };
 
@@ -443,9 +461,9 @@ namespace NetMPI {
       };
       void invalidMeshError(){throw std::runtime_error("invalid mesh");};
       void goPartition(){
-        printf("[%i]Executing partitioner\n",rank);
+        printf("[%i] Executing partitioner\n",rank);
         partitionEngine.partition(gmesh,partition_count);
-        printf("[%i]partitioner executed\n",rank);
+        printf("[%i] partitioner executed\n",rank);
       };
 
       int rank=0;int nranks=1;
@@ -464,3 +482,4 @@ namespace NetMPI {
       std::shared_ptr<PanNDE::Array<std::shared_ptr<PanNDE::Mesh>>> local_mesh_array=nullptr;
   };
 };
+
