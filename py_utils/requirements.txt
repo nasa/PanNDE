@@ -1,0 +1,5 @@
+#  Python >=3.11.11
+matplotlib>=3.10.0
+numpy>=2.2.1
+scipy>=1.14.1
+vtk>=9.4.1
